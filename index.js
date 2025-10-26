@@ -1,9 +1,11 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // =================================================================================
-// Module-level variables
+// Pre-configured API Key
 // =================================================================================
-let ai; // Will be initialized if API key is found
+const API_KEY = "AIzaSyBMyNXDBR75j0jjtW4uP2q9UQ4RBnI2C6M";
+let ai;
+
 
 // =================================================================================
 // Constants
@@ -259,8 +261,13 @@ async function handleGenerateAudio() {
         await renderAudioPlayer(generatedAudio, currentDownloadUrl);
 
     } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        displayError(`Failed to generate audio: ${errorMessage}`);
+        const errorMessage = e.message || String(e);
+        // Check for specific auth errors
+        if (errorMessage.includes('API key not valid')) {
+            displayError('Authentication Error: The pre-configured API Key is not valid.');
+        } else {
+            displayError(`Failed to generate audio: ${errorMessage}`);
+        }
         console.error(e);
     } finally {
         setButtonLoading(false);
@@ -268,28 +275,6 @@ async function handleGenerateAudio() {
 }
 
 function initializeApp() {
-    // === API Key and Environment Check ===
-    let apiKey;
-    try {
-        // This will fail in browser environments where `process` is not defined.
-        apiKey = process.env.API_KEY;
-    } catch (e) {
-        apiKey = null;
-        console.warn("Could not read process.env.API_KEY. This is expected in a browser-only environment.");
-    }
-
-    if (!apiKey) {
-        displayError("Configuration Error: API Key not found. This application requires an API key to be configured in its environment to function.");
-        textInput.disabled = true;
-        voiceSelect.disabled = true;
-        generateButton.disabled = true;
-        buttonText.textContent = 'Configuration Required';
-        return; // Stop initialization
-    }
-
-    // Initialize the GoogleGenAI client
-    ai = new GoogleGenAI({ apiKey });
-
     // Populate voice options
     VOICES.forEach(voice => {
         const option = document.createElement('option');
@@ -307,22 +292,28 @@ function initializeApp() {
         generateButton.disabled = true;
     }
     
-    // Register Service Worker for PWA
+    // Register Service Worker
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./service-worker.js')
-                .then(registration => {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                })
-                .catch(error => {
-                    console.log('ServiceWorker registration failed: ', error);
-                });
+                .then(reg => console.log('ServiceWorker registration successful:', reg.scope))
+                .catch(err => console.log('ServiceWorker registration failed:', err));
         });
     }
 
-
     // Add event listeners
     generateButton.addEventListener('click', handleGenerateAudio);
+
+    // Initialize Gemini Client
+    try {
+        ai = new GoogleGenAI({ apiKey: API_KEY });
+    } catch (e) {
+        console.error("Failed to initialize Gemini with the provided API Key:", e);
+        displayError("Could not initialize the AI service. The API key might be malformed.");
+        textInput.disabled = true;
+        voiceSelect.disabled = true;
+        generateButton.disabled = true;
+    }
 }
 
 // Start the application
