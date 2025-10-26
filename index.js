@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // =================================================================================
@@ -28,6 +29,8 @@ const spinner = document.getElementById('spinner');
 const buttonText = document.getElementById('button-text');
 const errorContainer = document.getElementById('error-container');
 const playerContainer = document.getElementById('player-container');
+const transcriptContainer = document.getElementById('transcript-container');
+const transcriptText = document.getElementById('transcript-text');
 
 // =================================================================================
 // State Variables
@@ -36,8 +39,10 @@ let isLoading = false;
 let currentDownloadUrl = null;
 let audioContext = null;
 let currentSource = null;
-let isPlaying = false;
 let currentAudioBuffer = null;
+let animationFrameId = null;
+let wordSpans = [];
+let currentWordIndex = -1;
 
 // =================================================================================
 // Audio Helper Functions
@@ -157,46 +162,83 @@ function cleanupAudio() {
         URL.revokeObjectURL(currentDownloadUrl);
         currentDownloadUrl = null;
     }
-    isPlaying = false;
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
     currentAudioBuffer = null;
     playerContainer.innerHTML = '';
+    
+    transcriptText.innerHTML = '';
+    transcriptContainer.classList.add('hidden');
+    wordSpans = [];
+    currentWordIndex = -1;
 }
 
-async function togglePlay(playButton, playIcon, stopIcon) {
-    if (!currentAudioBuffer) return;
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
 
-    if (isPlaying) {
-        currentSource?.stop();
-        isPlaying = false;
-        playIcon.classList.remove('hidden');
-        stopIcon.classList.add('hidden');
-    } else {
-        if (audioContext.state === 'suspended') {
-            await audioContext.resume();
-        }
-        const source = audioContext.createBufferSource();
-        source.buffer = currentAudioBuffer;
-        source.connect(audioContext.destination);
-        source.onended = () => {
-            isPlaying = false;
-            currentSource = null;
-            playIcon.classList.remove('hidden');
-            stopIcon.classList.add('hidden');
-        };
-        source.start();
-        currentSource = source;
-        isPlaying = true;
-        playIcon.classList.add('hidden');
-        stopIcon.classList.remove('hidden');
+async function renderAudioPlayer(base64Audio, downloadUrl, text) {
+    // Inject styles for the custom range input and karaoke
+    const styleId = 'custom-player-styles';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.innerHTML = `
+            .custom-seek-bar {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 100%;
+                height: 8px;
+                background: #4a5568; /* a darker gray */
+                border-radius: 5px;
+                outline: none;
+                cursor: pointer;
+            }
+            .custom-seek-bar::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 20px;
+                height: 20px;
+                background: #dd6b20; /* a nice orange */
+                border-radius: 50%;
+                cursor: pointer;
+            }
+            .custom-seek-bar::-moz-range-thumb {
+                width: 20px;
+                height: 20px;
+                background: #dd6b20;
+                border-radius: 50%;
+                cursor: pointer;
+            }
+            .highlight-word {
+                color: #dd6b20; /* a nice orange */
+                font-weight: 600;
+                transition: color 0.1s ease-in-out;
+            }
+        `;
+        document.head.appendChild(style);
     }
-}
-
-async function renderAudioPlayer(base64Audio, downloadUrl) {
+    
     playerContainer.innerHTML = `
-        <div class="w-full flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg space-y-4">
-            <h3 class="font-semibold text-gray-700">Generated Speech</h3>
-            <div id="player-controls" class="flex items-center space-x-4">
-                <p class="text-center text-gray-500">Processing audio...</p>
+        <div class="w-full flex flex-col items-center justify-center p-4 bg-gray-800 rounded-lg space-y-4 text-white">
+            <div id="player-controls" class="w-full flex items-center space-x-4">
+                <button id="play-pause-button" class="flex-shrink-0" aria-label="Play/Pause">
+                    <svg id="play-icon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M4.018 14.386A1.723 1.723 0 005.74 16.11l6.55-3.743a1.724 1.724 0 000-2.972L5.74 5.652A1.723 1.723 0 004.018 7.378v7.008z"></path></svg>
+                    <svg id="pause-icon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 4.5a.75.75 0 00-.75.75v10.5a.75.75 0 001.5 0V5.25a.75.75 0 00-.75-.75zm8.5 0a.75.75 0 00-.75.75v10.5a.75.75 0 001.5 0V5.25a.75.75 0 00-.75-.75z"></path></svg>
+                </button>
+                <div id="time-display" class="text-sm font-mono whitespace-nowrap">00:00 / 00:00</div>
+                <input type="range" id="seek-bar" class="custom-seek-bar w-full" min="0" value="0" step="0.1">
+                 <a id="download-link"
+                  href="${downloadUrl}"
+                  download="gemini-audio.mp3"
+                  class="flex-shrink-0 text-gray-400 hover:text-white"
+                  aria-label="Download audio">
+                   <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                </a>
             </div>
         </div>
     `;
@@ -205,27 +247,160 @@ async function renderAudioPlayer(base64Audio, downloadUrl) {
         const decodedBytes = decode(base64Audio);
         currentAudioBuffer = await decodePcmAudioData(decodedBytes, audioContext);
 
-        const playerControls = document.getElementById('player-controls');
-        playerControls.innerHTML = `
-            <button id="play-button"
-                class="flex items-center justify-center w-16 h-16 bg-cyan-500 rounded-full text-white shadow-lg transform hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-white"
-                aria-label="Play">
-                <svg id="play-icon" class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path></svg>
-                <svg id="stop-icon" class="w-8 h-8 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M5 8c0-1.1.9-2 2-2h6a2 2 0 012 2v4a2 2 0 01-2 2H7a2 2 0 01-2-2V8z"></path></svg>
-            </button>
-            <a id="download-link"
-              href="${downloadUrl}"
-              download="gemini-audio.mp3"
-              class="flex items-center justify-center w-16 h-16 bg-gray-200 hover:bg-gray-300 rounded-full text-gray-700 shadow-lg transform hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:ring-offset-white"
-              aria-label="Download audio">
-              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            </a>
-        `;
-        
-        const playButton = document.getElementById('play-button');
+        // Player state
+        let isPlaying = false;
+        let startOffset = 0;
+        let playbackStartTime = 0;
+        const duration = currentAudioBuffer.duration;
+
+        // Karaoke Transcript Setup
+        transcriptText.innerHTML = '';
+        wordSpans = [];
+        currentWordIndex = -1;
+        const words = text.trim().split(/\s+/);
+
+        if (words.length > 0 && words[0] !== '') {
+            const timePerWord = duration / words.length;
+            let cumulativeTime = 0;
+            const fragment = document.createDocumentFragment();
+
+            words.forEach(wordText => {
+                const span = document.createElement('span');
+                span.textContent = wordText;
+                span.dataset.startTime = cumulativeTime;
+                fragment.appendChild(span);
+                fragment.appendChild(document.createTextNode(' '));
+                wordSpans.push(span);
+                cumulativeTime += timePerWord;
+            });
+            
+            transcriptText.appendChild(fragment);
+            transcriptContainer.classList.remove('hidden');
+        }
+
+
+        // Player elements
+        const playPauseButton = document.getElementById('play-pause-button');
         const playIcon = document.getElementById('play-icon');
-        const stopIcon = document.getElementById('stop-icon');
-        playButton.addEventListener('click', () => togglePlay(playButton, playIcon, stopIcon));
+        const pauseIcon = document.getElementById('pause-icon');
+        const timeDisplay = document.getElementById('time-display');
+        const seekBar = document.getElementById('seek-bar');
+
+        // Initial setup
+        seekBar.max = duration;
+        timeDisplay.textContent = `00:00 / ${formatTime(duration)}`;
+
+        const updateUI = () => {
+            if (!isPlaying) return;
+            const currentTime = startOffset + (audioContext.currentTime - playbackStartTime);
+
+            // Karaoke Highlighting
+            let latestWordIndex = -1;
+            for (let i = 0; i < wordSpans.length; i++) {
+                if (currentTime >= parseFloat(wordSpans[i].dataset.startTime)) {
+                    latestWordIndex = i;
+                } else {
+                    break;
+                }
+            }
+
+            if (latestWordIndex !== currentWordIndex) {
+                if (currentWordIndex > -1) {
+                    wordSpans[currentWordIndex].classList.remove('highlight-word');
+                }
+                if (latestWordIndex > -1) {
+                    wordSpans[latestWordIndex].classList.add('highlight-word');
+                    wordSpans[latestWordIndex].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                }
+                currentWordIndex = latestWordIndex;
+            }
+
+            // Player progress
+            if (currentTime < duration) {
+                seekBar.value = currentTime;
+                timeDisplay.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+                animationFrameId = requestAnimationFrame(updateUI);
+            } else {
+                resetPlayerState();
+            }
+        };
+
+        const resetPlayerState = () => {
+             isPlaying = false;
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+            startOffset = 0;
+            seekBar.value = 0;
+            timeDisplay.textContent = `00:00 / ${formatTime(duration)}`;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            if (currentWordIndex > -1 && wordSpans[currentWordIndex]) {
+              wordSpans[currentWordIndex].classList.remove('highlight-word');
+            }
+            currentWordIndex = -1;
+        }
+        
+        const play = () => {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            currentSource = audioContext.createBufferSource();
+            currentSource.buffer = currentAudioBuffer;
+            currentSource.connect(audioContext.destination);
+            
+            playbackStartTime = audioContext.currentTime;
+            currentSource.start(0, startOffset % duration);
+            
+            isPlaying = true;
+            playIcon.classList.add('hidden');
+            pauseIcon.classList.remove('hidden');
+
+            currentSource.onended = () => {
+                if(isPlaying){ 
+                    resetPlayerState();
+                }
+            };
+            
+            animationFrameId = requestAnimationFrame(updateUI);
+        };
+
+        const pause = () => {
+            if (!currentSource) return;
+            currentSource.stop();
+            startOffset += (audioContext.currentTime - playbackStartTime);
+            
+            isPlaying = false;
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        };
+
+        playPauseButton.addEventListener('click', () => {
+            if (isPlaying) {
+                pause();
+            } else {
+                play();
+            }
+        });
+        
+        seekBar.addEventListener('input', () => {
+             if (isPlaying) {
+                pause();
+             }
+             startOffset = parseFloat(seekBar.value);
+             timeDisplay.textContent = `${formatTime(startOffset)} / ${formatTime(duration)}`;
+        });
+
+         seekBar.addEventListener('change', () => {
+            if(!isPlaying){
+                play();
+            }
+        });
 
     } catch (e) {
         console.error("Failed to decode audio:", e);
@@ -258,11 +433,10 @@ async function handleGenerateAudio() {
         const mp3Blob = createMp3Blob(generatedAudio);
         currentDownloadUrl = URL.createObjectURL(mp3Blob);
 
-        await renderAudioPlayer(generatedAudio, currentDownloadUrl);
+        await renderAudioPlayer(generatedAudio, currentDownloadUrl, text);
 
     } catch (e) {
         const errorMessage = e.message || String(e);
-        // Check for specific auth errors
         if (errorMessage.includes('API key not valid')) {
             displayError('Authentication Error: The pre-configured API Key is not valid.');
         } else {
