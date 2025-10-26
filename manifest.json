@@ -1,0 +1,22 @@
+{
+  "name": "Convert Novel to Audio",
+  "short_name": "Audio Novel",
+  "description": "Transform text into lifelike speech with a single click using Ai.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#0891b2",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

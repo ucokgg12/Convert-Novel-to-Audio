@@ -1,0 +1,5 @@
+{
+  "name": "Convert Novel to Audio",
+  "description": "A web application to Convert Novel to Audio. Users can select from various voice characters to generate speech.",
+  "requestFramePermissions": []
+}
