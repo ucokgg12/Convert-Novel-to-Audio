@@ -1,8 +1,11 @@
-const CACHE_NAME = 'gemini-tts-cache-v1';
+const CACHE_NAME = 'gemini-tts-cache-v2';
 const assetsToCache = [
-  '/',
-  '/index.html',
-  '/index.js',
+  './',
+  './index.html',
+  './index.js',
+  './manifest.json',
+  './icons/icon-192x192.png',
+  './icons/icon-512x512.png',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js'
 ];
@@ -13,6 +16,7 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Opened cache');
+        // Use addAll to fetch and cache all assets. It's atomic.
         return cache.addAll(assetsToCache);
       })
   );
