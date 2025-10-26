@@ -1,88 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Convert Novel to Audio</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
-    <link rel="manifest" href="./manifest.json" />
-    <meta name="theme-color" content="#0891b2" />
-    <link rel="apple-touch-icon" href="./icons/icon-192x192.png" />
-  <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0"
-  }
-}
-</script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veo 3 - AI Video Generation</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
-  <body class="bg-gray-50 text-gray-800 flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8 font-sans antialiased">
-    
-    <div id="app-container" class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6 sm:p-8 space-y-8 border border-gray-200">
-      <header class="text-center">
-        <h1 class="text-3xl sm:text-4xl font-bold text-cyan-600 tracking-tight">
-          Convert Novel to Audio
-        </h1>
-        <p class="mt-2 text-gray-600">
-          Transform text into lifelike speech with a single click.
-        </p>
-      </header>
-      
-      <main class="space-y-6">
-        <div class="space-y-2">
-          <label for="text-input" class="block text-sm font-medium text-gray-700">
-            Your Text
-          </label>
-          <textarea
-            id="text-input"
-            rows="5"
-            class="w-full bg-white border-2 border-gray-300 rounded-lg p-4 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-            placeholder="Enter text to convert to speech..."
-          >silahkan masukan text anda di sini</textarea>
-        </div>
-
-        <div class="space-y-2">
-          <label for="voice-select" class="block text-sm font-medium text-gray-700">
-            Select a Voice
-          </label>
-          <div class="relative">
-            <select
-              id="voice-select"
-              class="w-full appearance-none bg-white border-2 border-gray-300 rounded-lg py-3 px-4 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-            >
-              <!-- Options will be populated by JS -->
-            </select>
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-               <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M10 3a.75.75 0 01.55.24l3.25 3.5a.75.75 0 11-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 01-1.1-1.02l3.25-3.5A.75.75 0 0110 3zm-3.76 9.24a.75.75 0 011.06.04l2.7 2.92 2.7-2.92a.75.75 0 111.12 1.004l-3.25 3.5a.75.75 0 01-1.12 0l-3.25-3.5a.75.75 0 01.06-1.06z" clip-rule="evenodd" />
-              </svg>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i data-lucide="video"></i>
+                    </div>
+                    <h1>Veo 3</h1>
+                </div>
+                <nav class="nav">
+                    <a href="#" class="nav-link active">Generate</a>
+                    <a href="#" class="nav-link">Gallery</a>
+                    <a href="#" class="nav-link">API</a>
+                </nav>
             </div>
-          </div>
-        </div>
-        
-        <div>
-          <button
-            id="generate-button"
-            class="w-full flex items-center justify-center bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-white"
-          >
-            <svg id="spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span id="button-text">Generate Audio</span>
-          </button>
-        </div>
+        </header>
 
-        <div id="error-container" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-center hidden">
-        </div>
+        <!-- Main Content -->
+        <main class="main">
+            <div class="container">
+                <!-- Hero Section -->
+                <section class="hero">
+                    <h2>Create Amazing Videos with AI</h2>
+                    <p>Generate high-quality videos from text descriptions using advanced AI technology</p>
+                </section>
 
-        <div id="player-container" class="pt-4">
-        </div>
+                <!-- Video Generation Form -->
+                <section class="generation-form">
+                    <div class="form-container">
+                        <div class="input-section">
+                            <label for="prompt" class="label">Video Description</label>
+                            <textarea 
+                                id="prompt" 
+                                placeholder="Describe your video... e.g., 'A serene sunset over a mountain lake with gentle ripples on the water'"
+                                rows="4"
+                                maxlength="500"
+                            ></textarea>
+                            <div class="char-count">
+                                <span id="charCount">0</span> / 500
+                            </div>
+                        </div>
 
-      </main>
+                        <div class="controls-grid">
+                            <!-- Style Selection -->
+                            <div class="control-group">
+                                <label class="label">Style</label>
+                                <select id="style" class="select">
+                                    <option value="cinematic">Cinematic</option>
+                                    <option value="documentary">Documentary</option>
+                                    <option value="anime">Anime</option>
+                                    <option value="realistic">Realistic</option>
+                                    <option value="abstract">Abstract</option>
+                                </select>
+                            </div>
+
+                            <!-- Duration -->
+                            <div class="control-group">
+                                <label class="label">Duration</label>
+                                <select id="duration" class="select">
+                                    <option value="5">5 seconds</option>
+                                    <option value="10">10 seconds</option>
+                                    <option value="15">15 seconds</option>
+                                    <option value="30">30 seconds</option>
+                                </select>
+                            </div>
+
+                            <!-- Resolution -->
+                            <div class="control-group">
+                                <label class="label">Resolution</label>
+                                <select id="resolution" class="select">
+                                    <option value="720p">720p (1280×720)</option>
+                                    <option value="1080p" selected>1080p (1920×1080)</option>
+                                    <option value="4k">4K (3840×2160)</option>
+                                </select>
+                            </div>
+
+                            <!-- Frame Rate -->
+                            <div class="control-group">
+                                <label class="label">Frame Rate</label>
+                                <select id="framerate" class="select">
+                                    <option value="24">24 FPS</option>
+                                    <option value="30" selected>30 FPS</option>
+                                    <option value="60">60 FPS</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button id="generateBtn" class="generate-btn">
+                            <i data-lucide="play-circle"></i>
+                            Generate Video
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Progress Section -->
+                <section class="progress-section" id="progressSection" style="display: none;">
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <h3>Generating Your Video</h3>
+                            <span class="progress-percentage" id="progressPercentage">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-steps">
+                            <div class="step active" id="step1">
+                                <i data-lucide="file-text"></i>
+                                <span>Analyzing prompt</span>
+                            </div>
+                            <div class="step" id="step2">
+                                <i data-lucide="cpu"></i>
+                                <span>Generating frames</span>
+                            </div>
+                            <div class="step" id="step3">
+                                <i data-lucide="film"></i>
+                                <span>Rendering video</span>
+                            </div>
+                            <div class="step" id="step4">
+                                <i data-lucide="check-circle"></i>
+                                <span>Complete</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Result Section -->
+                <section class="result-section" id="resultSection" style="display: none;">
+                    <div class="result-container">
+                        <h3>Your Generated Video</h3>
+                        <div class="video-container">
+                            <video id="resultVideo" controls>
+                                <source src="" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        <div class="video-actions">
+                            <button class="action-btn primary" id="downloadBtn">
+                                <i data-lucide="download"></i>
+                                Download
+                            </button>
+                            <button class="action-btn secondary" id="shareBtn">
+                                <i data-lucide="share-2"></i>
+                                Share
+                            </button>
+                            <button class="action-btn secondary" id="regenerateBtn">
+                                <i data-lucide="refresh-cw"></i>
+                                Regenerate
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recent Generations -->
+                <section class="recent-section">
+                    <h3>Recent Generations</h3>
+                    <div class="recent-grid" id="recentGrid">
+                        <!-- Recent videos will be populated here -->
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <p>&copy; 2024 Veo 3 AI Video Generator. Powered by advanced AI technology.</p>
+            </div>
+        </footer>
     </div>
 
-    <script type="module" src="./index.js"></script>
-  </body>
+    <script src="script.js"></script>
+</body>
 </html>
