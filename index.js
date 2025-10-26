@@ -29,8 +29,6 @@ const spinner = document.getElementById('spinner');
 const buttonText = document.getElementById('button-text');
 const errorContainer = document.getElementById('error-container');
 const playerContainer = document.getElementById('player-container');
-const transcriptContainer = document.getElementById('transcript-container');
-const transcriptText = document.getElementById('transcript-text');
 
 // =================================================================================
 // State Variables
@@ -41,8 +39,6 @@ let audioContext = null;
 let currentSource = null;
 let currentAudioBuffer = null;
 let animationFrameId = null;
-let wordSpans = [];
-let currentWordIndex = -1;
 
 // =================================================================================
 // Audio Helper Functions
@@ -168,11 +164,6 @@ function cleanupAudio() {
     }
     currentAudioBuffer = null;
     playerContainer.innerHTML = '';
-    
-    transcriptText.innerHTML = '';
-    transcriptContainer.classList.add('hidden');
-    wordSpans = [];
-    currentWordIndex = -1;
 }
 
 function formatTime(seconds) {
@@ -181,8 +172,8 @@ function formatTime(seconds) {
     return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
 }
 
-async function renderAudioPlayer(base64Audio, downloadUrl, text) {
-    // Inject styles for the custom range input and karaoke
+async function renderAudioPlayer(base64Audio, downloadUrl) {
+    // Inject styles for the custom range input
     const styleId = 'custom-player-styles';
     if (!document.getElementById(styleId)) {
         const style = document.createElement('style');
@@ -213,11 +204,6 @@ async function renderAudioPlayer(base64Audio, downloadUrl, text) {
                 background: #dd6b20;
                 border-radius: 50%;
                 cursor: pointer;
-            }
-            .highlight-word {
-                color: #dd6b20; /* a nice orange */
-                font-weight: 600;
-                transition: color 0.1s ease-in-out;
             }
         `;
         document.head.appendChild(style);
@@ -253,32 +239,6 @@ async function renderAudioPlayer(base64Audio, downloadUrl, text) {
         let playbackStartTime = 0;
         const duration = currentAudioBuffer.duration;
 
-        // Karaoke Transcript Setup
-        transcriptText.innerHTML = '';
-        wordSpans = [];
-        currentWordIndex = -1;
-        const words = text.trim().split(/\s+/);
-
-        if (words.length > 0 && words[0] !== '') {
-            const timePerWord = duration / words.length;
-            let cumulativeTime = 0;
-            const fragment = document.createDocumentFragment();
-
-            words.forEach(wordText => {
-                const span = document.createElement('span');
-                span.textContent = wordText;
-                span.dataset.startTime = cumulativeTime;
-                fragment.appendChild(span);
-                fragment.appendChild(document.createTextNode(' '));
-                wordSpans.push(span);
-                cumulativeTime += timePerWord;
-            });
-            
-            transcriptText.appendChild(fragment);
-            transcriptContainer.classList.remove('hidden');
-        }
-
-
         // Player elements
         const playPauseButton = document.getElementById('play-pause-button');
         const playIcon = document.getElementById('play-icon');
@@ -293,27 +253,6 @@ async function renderAudioPlayer(base64Audio, downloadUrl, text) {
         const updateUI = () => {
             if (!isPlaying) return;
             const currentTime = startOffset + (audioContext.currentTime - playbackStartTime);
-
-            // Karaoke Highlighting
-            let latestWordIndex = -1;
-            for (let i = 0; i < wordSpans.length; i++) {
-                if (currentTime >= parseFloat(wordSpans[i].dataset.startTime)) {
-                    latestWordIndex = i;
-                } else {
-                    break;
-                }
-            }
-
-            if (latestWordIndex !== currentWordIndex) {
-                if (currentWordIndex > -1) {
-                    wordSpans[currentWordIndex].classList.remove('highlight-word');
-                }
-                if (latestWordIndex > -1) {
-                    wordSpans[latestWordIndex].classList.add('highlight-word');
-                    wordSpans[latestWordIndex].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-                }
-                currentWordIndex = latestWordIndex;
-            }
 
             // Player progress
             if (currentTime < duration) {
@@ -336,10 +275,6 @@ async function renderAudioPlayer(base64Audio, downloadUrl, text) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
-            if (currentWordIndex > -1 && wordSpans[currentWordIndex]) {
-              wordSpans[currentWordIndex].classList.remove('highlight-word');
-            }
-            currentWordIndex = -1;
         }
         
         const play = () => {
@@ -433,7 +368,7 @@ async function handleGenerateAudio() {
         const mp3Blob = createMp3Blob(generatedAudio);
         currentDownloadUrl = URL.createObjectURL(mp3Blob);
 
-        await renderAudioPlayer(generatedAudio, currentDownloadUrl, text);
+        await renderAudioPlayer(generatedAudio, currentDownloadUrl);
 
     } catch (e) {
         const errorMessage = e.message || String(e);
