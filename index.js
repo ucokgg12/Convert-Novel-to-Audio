@@ -1,6 +1,11 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // =================================================================================
+// Module-level variables
+// =================================================================================
+let ai; // Will be initialized if API key is found
+
+// =================================================================================
 // Constants
 // =================================================================================
 const VOICES = [
@@ -87,11 +92,9 @@ function createMp3Blob(base64Pcm) {
 // Gemini Service
 // =================================================================================
 async function generateSpeech(text, voiceName) {
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set.");
+  if (!ai) {
+    throw new Error("Gemini AI client is not initialized. Check API Key configuration.");
   }
-
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
@@ -265,6 +268,28 @@ async function handleGenerateAudio() {
 }
 
 function initializeApp() {
+    // === API Key and Environment Check ===
+    let apiKey;
+    try {
+        // This will fail in browser environments where `process` is not defined.
+        apiKey = process.env.API_KEY;
+    } catch (e) {
+        apiKey = null;
+        console.warn("Could not read process.env.API_KEY. This is expected in a browser-only environment.");
+    }
+
+    if (!apiKey) {
+        displayError("Configuration Error: API Key not found. This application requires an API key to be configured in its environment to function.");
+        textInput.disabled = true;
+        voiceSelect.disabled = true;
+        generateButton.disabled = true;
+        buttonText.textContent = 'Configuration Required';
+        return; // Stop initialization
+    }
+
+    // Initialize the GoogleGenAI client
+    ai = new GoogleGenAI({ apiKey });
+
     // Populate voice options
     VOICES.forEach(voice => {
         const option = document.createElement('option');
